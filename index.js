@@ -1,6 +1,7 @@
-var http = require('https');
-var fs = require('fs');
+const http = require('https');
 const moment = require('moment');
+const jsdom = require('jsdom');
+const {JSDOM} = jsdom;
 
 const express = require('express')
 
@@ -9,11 +10,11 @@ const app = express()
 app.use(express.json())
 app.use(express.urlencoded({extended: false}))
 
-const search = (body)=>{
+const search =  (body)=>{
     const departure = moment(body.dataIda, 'DD/MM/YYYY')
-    var qs = require('query-string');
+    const qs = require('query-string');
 
-    var options = {
+    const options = {
         'method': 'POST',
         'hostname': 'viajemais.voeazul.com.br',
         'path': '/Search.aspx',
@@ -39,17 +40,17 @@ const search = (body)=>{
         'maxRedirects': 20
       };
 
-        const returnRequest = ()=>{
+        const returnData = ()=>{
             return new Promise((response,reject)=>{
-                var req = http.request(options, (res)=> {
-                    var chunks = [];
+                const req = http.request(options, (res)=> {
+                    const chunks = [];
             
                     res.on("data", (chunk)=> {
                         chunks.push(chunk);
                     });
             
                     res.on("end",  (chunk)=> {
-                        var body = Buffer.concat(chunks);
+                        const body = Buffer.concat(chunks);
                         const bodyString = body.toString()
                         return response(bodyString)
                     });
@@ -98,12 +99,21 @@ const search = (body)=>{
         }
 
         return {
-            returnRequest
+            returnData
         }
 
 }
 
-app.post('/search',(req,res)=>{
+const getData = async (body)=>{
+    search(body).returnData().then((data)=>{
+        const dom = new JSDOM(data)
+        const list = dom.window.document.querySelectorAll(".flight-list add-border tbl-depart-flights")
+        console.log(list)
+    })
+    
+}
+
+app.post('/search',async(req,res)=>{
     const body = {
         origem: req.body.origem,
         destino: req.body.destino,
@@ -114,17 +124,7 @@ app.post('/search',(req,res)=>{
         bebes: req.body.bebes
     }
 
-    search(body).returnRequest().then((result)=>{
-        console.log('result:',result)
-    }).catch((error)=>{
-        console.log(error)
-    })
-
-    // const data = search(body)
-    // .then((result)=>{return result})
-    // .catch((error)=>{return error})
-
-    // console.log(data)
+    await getData(body)
 
 })
 
